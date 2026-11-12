@@ -116,7 +116,7 @@ LANGSMITH_PROJECT=tenantflow-langgraph
 
 If your key requires an explicit workspace, set `LANGSMITH_WORKSPACE_ID`. Use `LANGSMITH_ENDPOINT` for the appropriate deployment/region. Create keys and inspect projects at [LangSmith](https://smith.langchain.com/).
 
-Run a live question, then click **Open LangSmith trace** when available, or find `tenantflow_request` in your project. Expand it to see graph/node execution, tool inputs/outputs, tool-selection model calls, scope/evidence model calls, answer generation, timings, and available token usage. The browser journal is a separate local event stream; it works without LangSmith. Demo mode explicitly disables external tracing.
+Run a live question, then click **Open LangSmith trace** as soon as its link becomes available (including while the run is executing), or find `tenantflow_request` in your project. The root `tenantflow_request` contains the named `tenantflow_graph`, graph nodes, `route_from_orchestrator` decisions, tools, and `chroma_similarity_search` spans. Expand it to see graph/node execution, tool inputs/outputs, tool-selection model calls, scope/evidence model calls, answer generation, timings, and available token usage. The browser journal is a separate local event stream; it works without LangSmith. Demo mode explicitly disables external tracing.
 
 Tracing is opt-in because it sends questions, retrieved document excerpts, prompts, and outputs to LangSmith. API credentials remain server-side. Use content you are permitted to send to your configured providers. Traces are uploaded asynchronously; a returned trace link does not by itself prove remote ingestion succeeded. Check the LangSmith dashboard and server log for connectivity/authentication issues.
 

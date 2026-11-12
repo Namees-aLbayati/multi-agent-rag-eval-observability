@@ -64,6 +64,17 @@ function addEvent(event) {
   document.querySelectorAll('.road-step').forEach(el => el.classList.toggle('active', el.dataset.node === node));
 }
 
+function showTrace(urlString) {
+  if (!urlString) return;
+  try {
+    const url = new URL(urlString);
+    if (url.protocol === 'https:' && (url.hostname === 'smith.langchain.com' || url.hostname.endsWith('.smith.langchain.com'))) {
+      $('#trace-link').href = url.href;
+      $('#trace-link').hidden = false;
+    }
+  } catch { /* Invalid trace URLs do not interrupt workflow rendering. */ }
+}
+
 function finish(result) {
   lastRun = { ...result, query: activeQuery, events: runEvents };
   $('#answer-section').hidden = false;
@@ -81,13 +92,7 @@ function finish(result) {
     : `Validation: ${result.validation_status || 'not run'} · ${result.sources.length} retrieved passages. Inspect the evidence below.`;
   $('#jump-evidence').hidden = !result.sources.length;
   Pipeline.finish(result);
-  if (result.trace_url) {
-    const url = new URL(result.trace_url);
-    if (url.protocol === 'https:' && (url.hostname === 'smith.langchain.com' || url.hostname.endsWith('.smith.langchain.com'))) {
-      $('#trace-link').href = url.href;
-      $('#trace-link').hidden = false;
-    }
-  }
+  showTrace(result.trace_url);
 }
 
 function renderEvidence() {
@@ -120,6 +125,7 @@ async function stream(url, body) {
   function process(line) {
     if (!line.trim()) return;
     const event = JSON.parse(line);
+    if (event.type === 'trace') showTrace(event.trace_url);
     if (event.type === 'step') addEvent(event);
     if (event.type === 'error') throw new Error(event.message);
     if (event.type === 'result') { finish(event); terminal = true; }

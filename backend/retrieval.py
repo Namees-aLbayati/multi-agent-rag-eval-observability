@@ -76,6 +76,7 @@ def build_indexes():
         return counts | {'reused': False}
 
 
+@traceable(name='chroma_similarity_search')
 def search(kind, query, k):
     if not index_ready():
         raise ValueError('Build the PDF index before starting a live run.')

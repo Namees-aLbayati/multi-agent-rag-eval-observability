@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from . import retrieval
 from .settings import model, tracing_enabled
+import os
 
 
 class UnifiedState(TypedDict):
@@ -112,7 +113,7 @@ def make_tools(demo, retry_demo):
 def execute(query, mode, retry_demo, emit):
     demo = mode == 'demo'
     # Explicitly disable tracing for demo, regardless of environment settings.
-    with tracing_context(enabled=not demo and tracing_enabled()):
+    with tracing_context(enabled=not demo and tracing_enabled(), project_name=os.getenv('LANGSMITH_PROJECT', 'tenantflow-langgraph'), tags=['tenantflow', mode], metadata={'execution_mode': mode, 'workflow': 'policy-first-rag'}):
         return _execute(query, demo, retry_demo, emit)
 
 
@@ -120,6 +121,15 @@ def execute(query, mode, retry_demo, emit):
 def _execute(query, demo, retry_demo, emit):
     tools = make_tools(demo, retry_demo)
     started = time.perf_counter()
+    root_run = get_current_run_tree()
+    trace_url = None
+    if root_run is not None:
+        try:
+            trace_url = root_run.get_url()
+            emit({'type': 'trace', 'trace_url': trace_url, 'run_id': str(root_run.id)})
+        except Exception:
+            pass  # Local execution remains available if a remote URL cannot be resolved.
+
 
     def event(step, title, **detail):
         # Snapshot mutable state so later appends cannot rewrite earlier events.
@@ -130,7 +140,7 @@ def _execute(query, demo, retry_demo, emit):
     def run_tool(name, args):
         event(name, f'Executing {name}', phase='running', inputs=args)
         selected = parse_query if name == 'parse_query' else tools[name]
-        result = selected.invoke(args)
+        result = selected.invoke(args, config={'run_name': name, 'tags': ['tool', name], 'metadata': {'retrieval_attempt': args.get('attempt')}})
         event(name, f'{name} returned', phase='done', output=result)
         return result
 
@@ -213,19 +223,22 @@ def _execute(query, demo, retry_demo, emit):
                 return state
         raise RuntimeError('Tool step limit reached without a final answer.')
 
+    @traceable(name='route_from_orchestrator')
+    def route_from_orchestrator(state):
+        return state['next_agent']
+
     graph = StateGraph(UnifiedState)
     graph.add_node('orchestrator', orchestrator)
     graph.add_node('parse_agent', parse_agent)
     graph.add_node('response_agent', response_agent)
     graph.set_entry_point('orchestrator')
-    graph.add_conditional_edges('orchestrator', lambda state: state['next_agent'], {'parse_agent': 'parse_agent', 'response_agent': 'response_agent', 'END': END})
+    graph.add_conditional_edges('orchestrator', route_from_orchestrator, {'parse_agent': 'parse_agent', 'response_agent': 'response_agent', 'END': END})
     graph.add_edge('parse_agent', 'orchestrator')
     graph.add_edge('response_agent', 'orchestrator')
-    app = graph.compile()
-    result = app.invoke({'user_query': query, 'parsed_output': '', 'refined_output': '', 'parse_route': '', 'next_agent': '', 'legal_chunks': [], 'case_chunks': [], 'seen_legal_ids': [], 'validation_status': '', 'retrieval_attempt': 0, 'final_output': ''}, config={'recursion_limit': 12})
+    app = graph.compile(name='tenantflow_graph')
+    result = app.invoke({'user_query': query, 'parsed_output': '', 'refined_output': '', 'parse_route': '', 'next_agent': '', 'legal_chunks': [], 'case_chunks': [], 'seen_legal_ids': [], 'validation_status': '', 'retrieval_attempt': 0, 'final_output': ''}, config={'recursion_limit': 12, 'run_name': 'tenantflow_graph', 'tags': ['langgraph', 'policy-first'], 'metadata': {'mode': 'demo' if demo else 'live'}})
     run = get_current_run_tree()
-    trace_url = None
-    if run is not None:
+    if run is not None and trace_url is None:
         try:
             trace_url = run.get_url()
         except Exception:
