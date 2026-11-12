@@ -6,6 +6,46 @@
 
 A local full-stack learning app that turns a rental question into a visible journey through **scope parsing → policy retrieval → supporting cases → evidence validation → a cited answer**. A FastAPI backend runs a real three-node LangGraph; a browser frontend streams each step, displays tool inputs and outputs, and lets you inspect retrieved passages. Optional LangSmith tracing exposes the same run across nodes, tools, and model calls.
 
+## Screenshots
+
+A walkthrough of the local app, evidence inspector, and live tracing. Demo screenshots use simulated execution; the LangSmith screenshot shows a live run.
+
+### Application overview
+
+The local interface explains the policy-first workflow before you submit a question.
+
+![Application overview](docs/Screenshot%202026-11-12%20at%201.50.33%E2%80%AFPM.png)
+
+### Execution pipeline and retry path
+
+A completed demo highlights visited steps, repeated policy search, and the actual execution path.
+
+![Execution pipeline and retry path](docs/Screenshot%202026-11-12%20at%202.06.44%E2%80%AFPM.png)
+
+### LangSmith observability
+
+A live trace shows the request, LangGraph execution, routing, parsing, model calls, tools, and Chroma searches.
+
+![LangSmith observability](docs/Screenshot%202026-11-12%20at%202.09.49%E2%80%AFPM.png)
+
+### Retrieved policy evidence
+
+The source inspector displays retrieved policy passages with filename, page, chunk ID, and similarity distance.
+
+![Retrieved policy evidence](docs/Screenshot%202026-11-12%20at%202.09.02%E2%80%AFPM.png)
+
+### Supporting case evidence
+
+Case passages are displayed separately from primary policy evidence. These excerpts illustrate the supplied learning documents, not verified legal authority.
+
+![Supporting case evidence](docs/Screenshot%202026-11-12%20at%202.09.09%E2%80%AFPM.png)
+
+### Demo walkthrough
+
+Demo mode shows simulated tool execution and a clearly labeled simulated response; it does not generate legal advice.
+
+![Demo walkthrough](docs/Screenshot%202026-11-12%20at%201.50.40%E2%80%AFPM.png)
+
 ## Understand the workflow first
 
 ```mermaid
