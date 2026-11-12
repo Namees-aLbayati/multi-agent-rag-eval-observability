@@ -122,6 +122,12 @@ Tracing is opt-in because it sends questions, retrieved document excerpts, promp
 
 Official references: [LangGraph StateGraph](https://reference.langchain.com/python/langgraph/graph/state/StateGraph), [LangSmith tracing](https://docs.langchain.com/langsmith/annotate-code).
 
+## Execution diagram and retrieved evidence
+
+The UI includes an SVG execution diagram that updates from the streamed workflow events. It highlights active and visited steps, counts visits, and records an expandable actual execution path. It shows scope rejection, evidence validation, policy retry, grounded reply, and insufficient-evidence termination. The diagram includes tool steps within the three-node graph; it does not imply each tool is a separate LangGraph node.
+
+Policy and case passages appear immediately when their retrieval tool returns, including on runs that later fail. Passages are expanded by default and labeled as primary policy or supporting case material, with filename, page, chunk ID, and similarity distance. The completed answer shows validation status and links to the passages. Demo mode uses simulated evidence; select Live PDF mode for a generated answer grounded in the indexed PDFs.
+
 ## Full-stack structure
 
 ```text

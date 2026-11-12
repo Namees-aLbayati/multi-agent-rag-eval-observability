@@ -4,6 +4,7 @@ let busy = false;
 let lastRun = null;
 let runEvents = [];
 let activeQuery = '';
+let retrievedChunks = new Map();
 
 function text(tag, value, className) {
   const node = document.createElement(tag);
@@ -44,6 +45,12 @@ function setBusy(value) {
 
 function addEvent(event) {
   runEvents.push(event);
+  Pipeline.update(event);
+  if (event.phase === 'done' && ['policy_search_tool', 'cases_search_tool'].includes(event.step)) {
+    const kind = event.step === 'policy_search_tool' ? 'policy' : 'case';
+    for (const chunk of event.output.chunks || []) retrievedChunks.set(chunk.id, { ...chunk, kind });
+    renderEvidence();
+  }
   const item = text('div', '', 'event');
   const head = text('div', '', 'event-head');
   head.append(text('span', event.title), text('span', event.elapsed_ms != null ? `${(event.elapsed_ms / 1000).toFixed(1)}s` : '', 'event-time'));
@@ -64,15 +71,16 @@ function finish(result) {
   $('#answer').textContent = result.answer;
   $('#run-meta').textContent = `${result.mode.toUpperCase()} · ${result.attempts} retrieval attempt(s) · ${(result.duration_ms / 1000).toFixed(1)}s`;
   $('#run-state').textContent = 'COMPLETE';
-  $('#sources').replaceChildren();
   for (const chunk of result.sources) {
-    const card = document.createElement('details');
-    card.className = 'source';
-    card.append(text('summary', `${chunk.source} · p. ${chunk.page}`), text('small', `Chunk ${chunk.id.slice(0, 16)} · distance ${Number(chunk.distance).toFixed(3)} (not a confidence score)`), text('p', chunk.text));
-    $('#sources').append(card);
+    const previous = retrievedChunks.get(chunk.id);
+    retrievedChunks.set(chunk.id, { ...chunk, kind: previous?.kind || 'source' });
   }
-  $('#sources-section').hidden = !result.sources.length;
-  $('#source-count').textContent = `${result.sources.length} retrieved chunks`;
+  renderEvidence();
+  $('#answer-evidence').textContent = result.mode === 'demo'
+    ? 'Demo response and passages are simulated. Use Live PDF mode for an answer based on your documents.'
+    : `Validation: ${result.validation_status || 'not run'} · ${result.sources.length} retrieved passages. Inspect the evidence below.`;
+  $('#jump-evidence').hidden = !result.sources.length;
+  Pipeline.finish(result);
   if (result.trace_url) {
     const url = new URL(result.trace_url);
     if (url.protocol === 'https:' && (url.hostname === 'smith.langchain.com' || url.hostname.endsWith('.smith.langchain.com'))) {
@@ -80,6 +88,22 @@ function finish(result) {
       $('#trace-link').hidden = false;
     }
   }
+}
+
+function renderEvidence() {
+  const chunks = [...retrievedChunks.values()];
+  $('#sources').replaceChildren();
+  for (const chunk of chunks) {
+    const card = document.createElement('details');
+    card.className = 'source';
+    card.open = true;
+    const summary = document.createElement('summary');
+    summary.append(text('span', chunk.kind === 'policy' ? 'PRIMARY POLICY' : chunk.kind === 'case' ? 'SUPPORTING CASE' : 'RETRIEVED SOURCE', 'evidence-kind'), document.createElement('br'), text('span', `${chunk.source} · p. ${chunk.page}`));
+    card.append(summary, text('small', `Chunk ${chunk.id.slice(0, 16)} · distance ${Number(chunk.distance).toFixed(3)} (not a confidence score)`), text('p', chunk.text));
+    $('#sources').append(card);
+  }
+  $('#sources-section').hidden = !chunks.length;
+  $('#source-count').textContent = `${chunks.length} retrieved passages`;
 }
 
 async function stream(url, body) {
@@ -101,6 +125,7 @@ async function stream(url, body) {
     if (event.type === 'result') { finish(event); terminal = true; }
     if (event.type === 'indexed') {
       addEvent({ step: 'index', title: `${event.reused ? 'Reused' : 'Built'} index: ${event.policy} policy + ${event.cases} case chunks` });
+      $('#pipeline-status').textContent = 'INDEX READY';
       terminal = true;
     }
   }
@@ -120,6 +145,8 @@ async function start(url, body) {
   if (busy) return;
   setBusy(true);
   activeQuery = body?.query || '';
+  retrievedChunks = new Map();
+  Pipeline.reset(url.includes('index'));
   runEvents = [];
   lastRun = null;
   $('#journal').replaceChildren();

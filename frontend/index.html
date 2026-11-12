@@ -5,6 +5,7 @@
   <title>TenantFlow · Follow the evidence</title>
   <meta name="description" content="An observable, policy-first LangGraph workflow for exploring residential rental documents.">
   <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/diagram.js" defer></script>
   <script src="/assets/app.js" defer></script>
 </head>
 <body>
@@ -35,6 +36,13 @@
         </div>
       </section>
 
+      <section class="pipeline-section" aria-labelledby="pipeline-title">
+        <div class="section-head"><div><span class="eyebrow">EXECUTION PIPELINE</span><h2 id="pipeline-title">Follow the actual run</h2></div><span id="pipeline-status" class="pill">WAITING</span></div>
+        <p class="muted">Graph nodes contain tool steps. Green marks visited steps; the outlined step is active. Retries return to policy search, while rejected questions skip retrieval.</p>
+        <div id="pipeline-diagram" class="pipeline-diagram"></div>
+        <p id="pipeline-current" class="muted" role="status">Run a question to activate the diagram.</p>
+        <details class="execution-path"><summary>Actual execution path</summary><ol id="execution-path"></ol></details>
+      </section>
       <div class="workspace">
         <section class="query-card" aria-labelledby="query-heading">
           <div class="section-head"><h2 id="query-heading">Ask your documents</h2><span class="pill">NEW RUN</span></div>
@@ -54,11 +62,11 @@
           <div class="section-head"><h2 id="result-heading">Execution journal</h2><span id="run-state" class="pill">READY</span></div>
           <div class="journal-meta"><span id="run-meta">Your next run starts here</span><a id="trace-link" target="_blank" rel="noopener noreferrer" hidden>Open LangSmith trace ↗</a></div>
           <div id="journal" class="journal" role="log" aria-label="Workflow execution events"><div class="empty-state"><div class="empty-icon">⌘</div><h3>See what happens between<br>question and answer.</h3><p>Run a demo to follow tool requests, evidence retrieval, and validation as they happen.</p></div></div>
-          <div id="answer-section" class="answer-section" hidden><div class="eyebrow" id="answer-label">FINAL RESPONSE</div><div id="answer" class="answer"></div><button id="download-button" class="text-button">Download run JSON ↓</button></div>
+          <div id="answer-section" class="answer-section" aria-live="polite" hidden><div class="eyebrow" id="answer-label">FINAL RESPONSE</div><div id="answer" class="answer"></div><p id="answer-evidence" class="muted"></p><a id="jump-evidence" href="#sources-section" class="text-button" hidden>Read retrieved passages ↓</a><button id="download-button" class="text-button">Download run JSON ↓</button></div>
         </section>
       </div>
 
-      <section id="sources-section" class="sources-section" hidden><div class="section-head"><div><span class="eyebrow">SOURCE INSPECTOR</span><h2>Evidence behind this run</h2></div><span id="source-count" class="muted"></span></div><div id="sources" class="sources"></div></section>
+      <section id="sources-section" class="sources-section" hidden><div class="section-head"><div><span class="eyebrow">SOURCE INSPECTOR</span><h2>Retrieved policy &amp; case passages</h2></div><span id="source-count" class="muted"></span></div><p class="muted">These are the exact passages returned by the search tools. Retrieved evidence is separate from the generated answer; validation assesses policy coverage, not every individual passage.</p><div id="sources" class="sources"></div></section>
       <footer><span>TenantFlow / A transparent workflow, from question to source.</span><span>Document-based education · Not legal advice</span></footer>
     </main>
   </div>
