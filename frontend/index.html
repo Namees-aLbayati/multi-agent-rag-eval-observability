@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TenantFlow · Follow the evidence</title>
+  <meta name="description" content="An observable, policy-first LangGraph workflow for exploring residential rental documents.">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar"><a class="brand" href="/"><span class="brandmark">T<span>↗</span></span> TenantFlow<span class="brand-sub">WORKFLOW LAB</span></a><span class="local-badge"><i></i> LOCAL WORKSPACE</span></header>
+    <main>
+      <section class="intro">
+        <div class="eyebrow">DOCUMENT INTELLIGENCE / BUILT WITH LANGGRAPH</div>
+        <h1>Good answers follow<br><span>the evidence.</span></h1>
+        <p class="lead">Ask a rental question. Watch a three-node graph parse its intent, retrieve policy and case evidence, validate coverage, and write a grounded response.</p>
+        <div class="intro-meta"><span>01 · Primary policy first</span><span>02 · Up to 3 retrieval attempts</span><span>03 · Inspect every step</span></div>
+      </section>
+
+      <section class="workflow" aria-labelledby="workflow-title">
+        <div class="section-head"><div><span class="eyebrow">THE ROADMAP</span><h2 id="workflow-title">One question. A visible chain of evidence.</h2></div><button id="explain-toggle" class="text-button" aria-expanded="false" aria-controls="workflow-detail">How it works <span>↗</span></button></div>
+        <div class="roadmap">
+          <div class="road-step" data-node="orchestrator"><b>01</b><h3>Orchestrate</h3><p>Route using shared state</p></div><span class="arrow">→</span>
+          <div class="road-step" data-node="parse_agent"><b>02</b><h3>Parse & validate</h3><p>Rules first, then scope LLM</p></div><span class="arrow">→</span>
+          <div class="road-step" data-node="response_agent"><b>03</b><h3>Retrieve & check</h3><p>Policy → cases → validation</p></div><span class="arrow">→</span>
+          <div class="road-step" data-node="reply_tool"><b>04</b><h3>Respond</h3><p>Answer from cited evidence</p></div>
+        </div>
+        <div id="workflow-detail" class="workflow-detail" hidden>
+          <p><strong>Three graph nodes:</strong> Orchestrator → Parse Agent → Orchestrator → Response Agent → Orchestrator → END. “Respond” above is a tool step inside the Response Agent, not a fourth graph node.</p>
+          <p><strong>Inside parsing:</strong> <code>parse_query</code> uses keyword rules. <code>validate_and_refine_parsed_query</code> checks scope using an LLM. Rejected questions end before retrieval.</p>
+          <p><strong>Inside the response loop:</strong> The model returns a tool name and arguments; Python executes the tool with inputs from shared state. This app constrains each request to the next permitted tool and one call at a time. Order and limits are enforced in code.</p>
+          <p><strong>Retries:</strong> Policy search requests 5, then 10, then 15 candidates and appends up to five unseen chunks per attempt. Only NOT_RELEVANT increments the attempt. Policy evidence alone is validated. Cases are retrieved once. Three failed validations produce an insufficient-evidence response.</p>
+          <p><strong>Observability:</strong> Live runs can trace graph nodes, tools, model requests, inputs, outputs, latency, and available token usage in your LangSmith project. Tracing sends question and excerpt content to LangSmith when enabled. Demo fixtures never call external models or LangSmith.</p>
+        </div>
+      </section>
+
+      <div class="workspace">
+        <section class="query-card" aria-labelledby="query-heading">
+          <div class="section-head"><h2 id="query-heading">Ask your documents</h2><span class="pill">NEW RUN</span></div>
+          <div class="mode-switch" role="group" aria-label="Execution mode"><button class="mode active" data-mode="demo" aria-pressed="true">Demo walkthrough</button><button class="mode" data-mode="live" aria-pressed="false">Live PDF mode</button></div>
+          <p id="mode-description" class="muted">Simulated evidence. No API key, model calls, or legal advice.</p>
+          <form id="query-form">
+            <label for="query">YOUR QUESTION</label>
+            <textarea id="query" required minlength="3" maxlength="6000" rows="5" placeholder="For example: My landlord kept my security deposit for repainting. What do the documents say?">My landlord kept my security deposit for repainting. What do the documents say?</textarea>
+            <div class="examples"><button type="button" data-example="My landlord increased my rent without written notice. What do the documents say?">Rent increase</button><button type="button" data-example="My landlord entered my apartment without notice. What do the documents say?">Entry & privacy</button><button type="button" data-example="How do I bake a chocolate cake?">Out-of-scope test</button></div>
+            <label class="check-label" id="retry-option"><input type="checkbox" id="demo-retry" checked> Demonstrate a failed validation and retry</label>
+            <button type="submit" id="run-button" class="primary">Run the workflow <span>↗</span></button>
+          </form>
+          <div class="configuration"><div class="eyebrow">ENVIRONMENT</div><div id="config-status" class="status-list">Checking server configuration…</div><button id="index-button" class="secondary">Build / reuse PDF index</button><p class="tiny">Live indexing sends PDF text to your configured embedding provider. Existing matching indexes are reused.</p></div>
+        </section>
+
+        <section class="result-card" aria-labelledby="result-heading">
+          <div class="section-head"><h2 id="result-heading">Execution journal</h2><span id="run-state" class="pill">READY</span></div>
+          <div class="journal-meta"><span id="run-meta">Your next run starts here</span><a id="trace-link" target="_blank" rel="noopener noreferrer" hidden>Open LangSmith trace ↗</a></div>
+          <div id="journal" class="journal" role="log" aria-label="Workflow execution events"><div class="empty-state"><div class="empty-icon">⌘</div><h3>See what happens between<br>question and answer.</h3><p>Run a demo to follow tool requests, evidence retrieval, and validation as they happen.</p></div></div>
+          <div id="answer-section" class="answer-section" hidden><div class="eyebrow" id="answer-label">FINAL RESPONSE</div><div id="answer" class="answer"></div><button id="download-button" class="text-button">Download run JSON ↓</button></div>
+        </section>
+      </div>
+
+      <section id="sources-section" class="sources-section" hidden><div class="section-head"><div><span class="eyebrow">SOURCE INSPECTOR</span><h2>Evidence behind this run</h2></div><span id="source-count" class="muted"></span></div><div id="sources" class="sources"></div></section>
+      <footer><span>TenantFlow / A transparent workflow, from question to source.</span><span>Document-based education · Not legal advice</span></footer>
+    </main>
+  </div>
+</body>
+</html>
