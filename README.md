@@ -6,6 +6,69 @@
 
 A local full-stack learning app that turns a rental question into a visible journey through **scope parsing → policy retrieval → supporting cases → evidence validation → a cited answer**. A FastAPI backend runs a real three-node LangGraph; a browser frontend streams each step, displays tool inputs and outputs, and lets you inspect retrieved passages. Optional LangSmith tracing exposes the same run across nodes, tools, and model calls.
 
+## Evaluated notebook workflow
+
+The companion notebook, `../rental_law_queries_resolution (4).ipynb`, now includes the evaluation and clarification features from `rental_law_queries_resolution_with_evaluation.ipynb`. It lives outside this Git repository. The features below describe the notebook; the browser app still uses the three-node workflow documented below.
+
+```mermaid
+flowchart TD
+    Q[User question] --> O[Orchestrator]
+    O --> P[Parse and validate scope]
+    P -->|Out of scope| X[Return rejection and END]
+    P -->|Essential fact missing| C[Ask one clarification question]
+    C -->|Real answer| V[Revalidate updated question]
+    C -->|No answer| W[Clarification pending; END before retrieval]
+    V -->|Still missing facts| W
+    V -->|Enough information| S[Score parsing confidence]
+    P -->|Enough information| S
+    S --> R[Policy retrieval, supporting cases, policy validation]
+    R -->|Insufficient; attempts remain| R
+    R -->|Sufficient| A[Generate grounded draft]
+    R -->|Three insufficient attempts| I[Insufficient evidence result]
+    A --> E[Quality audit]
+    I --> E
+    E -->|Pass| D[Return answer]
+    E -->|Fail| H[Return review-needed message and reasons]
+```
+
+### Notebook additions
+
+- **Clarification:** `clarification_query()` asks one targeted question using notebook `input()`. The Parse Agent revalidates the real response; unanswered or unresolved clarification ends with `clarification_pending`, without searching. No simulated answer is substituted. This is notebook interaction, not persistent web-session pause/resume.
+- **Confidence:** `score_parsed_query()` records interpretation confidence; `validate_chunks_tool()` returns `SUFFICIENT`/`INSUFFICIENT` plus evidence confidence. These are model assessments, not calibrated probabilities.
+- **Ordered execution:** policy search, one case search, policy-only validation, up to three policy retrieval attempts, then reply if sufficient. A successful third attempt can produce an answer. Requested tools and completion/failure status are logged.
+- **Answer evaluation:** `relevance_groundedness_tool()` scores relevance and groundedness from 1–5 and records notes. `eval_metrics_tool()` checks completed required tools, tool order, termination through `reply_tool()`, and observable reasoning coherence from 1–5.
+- **Final gate:** `response_quality_audit_agent_node()` requires relevance, groundedness, and coherence scores of at least 3, retrieval confidence of at least 0.60, sufficient policy evidence, and passing execution checks. Malformed evaluation output fails the gate. A failed audit preserves the draft separately, records review flags/reasons, and returns a review-needed message. No human-review service is connected.
+
+### Run and inspect the notebook
+
+Restart the notebook kernel and run cells from the top. It uses the existing configuration and source PDFs; follow its setup cells. Existing examples retain an answer-string return value:
+
+```python
+answer = test_case_execution("Your rental question", verbose=True)
+report = run_evaluated_query("Your rental question")  # structured state/report
+```
+
+Each call executes a separate query and may request clarification. Reports include parsing/retrieval confidence, relevance, groundedness, coherence, execution logs, review reasons, outcome, and elapsed time.
+
+### Optional reporting versus LangSmith tracing
+
+LangSmith tracing already exposes model/tool calls, timings, and available usage data. A separate dashboard is not required. The notebook's reporting helpers are optional summaries across runs, not another agent pipeline:
+
+```python
+# Summarize this kernel's explicit workflow outcomes; no LangSmith request.
+print_efficiency_dashboard(compute_aggregate_metrics(RUN_REPORTS))
+
+# Optional: query traced root runs for available token and cost metadata.
+runs = fetch_langsmith_runs(max_runs=50)
+print_efficiency_dashboard(
+    compute_aggregate_metrics(parse_run_metadata(runs))
+)
+```
+
+The LangSmith query selects root runs named `rental_law_evaluated_query`. Reports use explicit `completed`, `review_needed`, `out_of_scope`, `clarification_pending`, and `error` outcomes. Aggregates include outcome rates, latency mean/min/max/median, average tokens, per-tool counts, and available total/prompt/output costs. Missing usage metadata stays unavailable rather than being reported as zero. Workflow completion does not establish legal correctness.
+
+Notebook JSON/schema and Python syntax were checked, with deterministic mocked checks for audit pass/fail, missing tools, incorrect order, scope rejection, unanswered clarification, third-attempt retrieval success, and aggregates. Live model/PDF and LangSmith integration still require an end-to-end run. Neither notebook implements OCR/vision retrieval, a ground-truth benchmark, or an automatic human handoff.
+
 ## Screenshots
 
 A walkthrough of the local app, evidence inspector, and live tracing. Demo screenshots use simulated execution; the LangSmith screenshot shows a live run.
